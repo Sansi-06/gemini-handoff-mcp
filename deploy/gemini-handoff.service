@@ -1,0 +1,18 @@
+[Unit]
+Description=Gemini Handoff MCP Connector Server
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/gemini-handoff-mcp
+EnvironmentFile=/opt/gemini-handoff-mcp/.env
+Environment=HOST=127.0.0.1
+Environment=PORT=8787
+ExecStart=/usr/bin/node /opt/gemini-handoff-mcp/src/server.mjs
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

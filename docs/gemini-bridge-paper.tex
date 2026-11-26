@@ -1,0 +1,273 @@
+\documentclass[10pt,a4paper,twocolumn]{article}
+
+\usepackage[top=2.0cm,bottom=2.2cm,left=1.75cm,right=1.75cm,columnsep=0.65cm]{geometry}
+\usepackage{xeCJK}
+\usepackage{fontspec}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,fit,backgrounds}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{abstract}
+
+% Academic Typography: Times/Latin serif + SimSun body + SimHei headings
+\setmainfont{Times New Roman}
+\setsansfont{Segoe UI}
+\setmonofont[Scale=0.86]{Consolas}
+\setCJKmainfont[BoldFont=SimHei,ItalicFont=KaiTi]{SimSun}
+\setCJKsansfont{Microsoft YaHei}
+\setCJKmonofont{FangSong}
+
+\definecolor{PrimaryBlue}{HTML}{1A73E8}
+\definecolor{SoftBlue}{HTML}{E8F0FE}
+\definecolor{SoftGreen}{HTML}{E6F4EA}
+\definecolor{SoftAmber}{HTML}{FEF7E0}
+\definecolor{SoftRed}{HTML}{FCE8E6}
+\definecolor{BorderGray}{HTML}{5F6368}
+\definecolor{InkDark}{HTML}{202124}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=PrimaryBlue,
+  citecolor=PrimaryBlue,
+  urlcolor=PrimaryBlue,
+  pdftitle={Gemini Bridge MCP: 端云异构智能体协同与免费算力借用架构},
+  pdfauthor={gemini-bridge-mcp}
+}
+
+% Standard academic indentation & spacing
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0pt}
+\linespread{1.22}
+
+% Section formatting (IEEE/arXiv clean style)
+\titleformat{\section}
+  {\normalsize\bfseries\color{InkDark}}
+  {\thesection}{0.6em}{}
+\titleformat{\subsection}
+  {\small\bfseries\color{InkDark}}
+  {\thesubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{10pt plus 2pt minus 2pt}{4pt plus 1pt}
+\titlespacing*{\subsection}{0pt}{7pt plus 1pt minus 1pt}{3pt plus 1pt}
+
+\captionsetup{font=footnotesize,labelfont=bf,skip=4pt}
+
+% Header & Footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\scriptsize\color{BorderGray} TECHNICAL REPORT \quad$\cdot$\quad GEMINI-BRIDGE-MCP (V1.0)}
+\fancyhead[R]{\scriptsize\color{BorderGray} NOVEMBER 2026}
+\fancyfoot[C]{\scriptsize\color{BorderGray} \thepage}
+\setlength{\headheight}{14pt}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\begin{document}
+
+% Full-width academic title block
+\twocolumn[
+  \vspace*{-0.6cm}
+  \noindent\rule{\textwidth}{1.6pt}
+  \begin{center}
+    \vspace{0.25cm}
+    {\Large\bfseries\textcolor{InkDark}{Gemini Bridge MCP 架构设计与实践}}\par
+    \vspace{0.35em}
+    {\large\textcolor{InkDark}{面向免费本地编程智能体的云端规划借用与双向异步协同}}\par
+    \vspace{0.6em}
+    {\small\textbf{gemini-bridge-mcp 开源项目组}}\par
+    \vspace{0.2em}
+    {\footnotesize\textcolor{BorderGray}{Zero-Dependency Node.js 22 Implementation \quad$\cdot$\quad Streamable HTTP MCP \quad$\cdot$\quad MIT License}}\par
+  \end{center}
+  \noindent\rule{\textwidth}{0.6pt}
+  \vspace{0.25cm}
+
+  \begin{center}
+    \begin{minipage}{0.94\textwidth}
+      \footnotesize
+      \textbf{摘要}\quad
+      本地编程智能体（如 Antigravity、Claude Code）能够直接读写代码库、运行终端命令并验证测试，但免费档位普遍受限于模型推理深度、上下文长度与调用配额，面对跨文件重构或长文档调研时容易捉闺见肘。与此同时，网页端与移动端 Google Gemini APP 即便在免费或基础订阅档位下，依然提供了宽裕的长上下文吞吐、深度搜索与高阶规划能力，却因运行在云端沙箱内而无法直接触碰本地工程文件。本文提出并实现了一套零外部依赖的双向异步协议桥梁 \texttt{gemini-bridge-mcp}。系统放弃脆弱且易触发风控的浏览器模拟点击路线，直接依托 Google 官方 Connected Apps（Custom apps）所支持的 Streamable HTTP MCP 标准，将“云端高阶规划（控制面）”与“本地代码执行（数据面）”解耦。文章详细阐述了该架构的双向任务状态机、多账号零弹窗密钥直连机制、双端安全沙箱隔离模型以及实测验证结果，并客观讨论了常驻部署成本、平台入口限制与半自动触发等现实边界。\par
+      \vspace{0.35em}
+      \textbf{关键词}\quad 模型上下文协议（MCP）；端云协同智能体；控制面与数据面解耦；异步任务队列；安全沙箱
+    \end{minipage}
+  \end{center}
+  \vspace{0.4cm}
+]
+
+\section{引言}
+
+过去两年里，以 Antigravity、Claude Code 和 Cursor 为代表的本地编程智能体，把开发者从逐行手写样板代码里解放了出来。这类工具最大的长处在于“有手有脚”，它们能直接翻看本地目录、修改源码、跑通单元测试并提交 Git 变更。
+
+然而在实际开发里，免费账号很快就会撞上一堵墙。日常修一个小报错、补一个工具函数，本地免费档位配的轻量模型都能胜任。一旦任务变成“通读几万字接口文档后重构十几个模块”，轻量模型的上下文窗口和推理深度会迅速见底，配额也会在几轮反复试错里耗光。
+
+另一头的情况刚好反过来。很多开发者手机和浏览器里都装着 Google Gemini APP。即便只用免费额度，Gemini APP 提供的长上下文阅读、全网深度检索和复杂规划能力，都明显强于本地免费模型。它缺的只是碰到硬盘的手脚。因此不少开发者长期停留在最原始的协作方式里，先把十几段代码手动复制到网页里讨论方案，再把网页给出的几千字建议人肉贴回本地编辑器里逐行改。
+
+围绕这个具体的断点，我们设计并开源了 \texttt{gemini-bridge-mcp}。这套系统的核心工作集中在三件事上。第一，基于 Google 官方 Connected Apps 支持的 Streamable HTTP MCP 协议 \cite{mcp2025}，搭建了一条双向异步任务总线，免去了脆弱的网页自动化抓取。第二，在本地推送与云端读取两端建立只读代码沙箱和敏感文件硬拦截，让云端大脑能安全读到项目上下文却无法破坏源码。第三，提供标准 OAuth 2.1 动态注册与多账号专属直连密钥两条认证路径，兼顾协议规范与个人部署的易用性。
+
+\section{背景与现有路线对比}
+
+把本地编程工具和云端 Gemini 连在一起，开源社区此前主要尝试过两条路线。第一条是浏览器自动化路线，代表项目包括 \texttt{BowTiedSwan/gemini-mcp} \cite{bowtied2025} 与 \texttt{Walkoud/gemini-browser-mcp} \cite{walkoud2025}。它们在后台启动 Playwright 或挂载 Chrome 插件，模拟人类点击网页输入框并抓取回复。第二条是官方 CLI 或纯 API 封装路线，直接按 Token 计费调用云端接口。
+
+两条路线各自有明显的短板。浏览器自动化高度依赖网页前端的 DOM 结构，只要页面改版或混淆样式名，脚本就会失效。更高昂的隐性代价来自账号风控，自动化程序高频操作登录态页面容易触发验证码甚至账号受限，而且它只能绑在开着浏览器的那台电脑上，手机端完全用不了。纯 API 路线虽然稳定，但面对动辄数十万 Token 的长文档消化和深度调研，按量计费的账单很快就会超出个人开发者的承受范围。
+
+\begin{table}[t]
+\centering
+\caption{两类跨端桥接路线的工程特性对比}
+\label{tab:compare}
+\scriptsize
+\begin{tabularx}{\columnwidth}{@{}lXX@{}}
+\toprule
+\textbf{评估维度} & \textbf{浏览器自动化方案} & \textbf{gemini-bridge-mcp} \\
+\midrule
+通信协议 & 模拟 DOM 点击与页面抓取 & 官方 Streamable HTTP MCP \\
+前端耦合度 & 强耦合，随网页改版频繁失效 & 零耦合，纯 JSON-RPC 2.0 通信 \\
+账号风控 & 易触发验证码与异常检测 & 走官方 Custom apps 公开入口 \\
+内存占用 & 常驻 Chromium 约 500 MB & 原生 Node.js 进程低于 30 MB \\
+移动端协同 & 仅限本机浏览器窗口 & Web、iOS 与 Android 原生唤起 \\
+状态可靠性 & 断网或超时易丢失上下文 & 原子任务锁与本地文件持久化 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\texttt{gemini-bridge-mcp} 采取了第三条思路，把连接方向倒过来。本地不再去抓网页界面，而是运行一个符合官方规范的远程 MCP 服务端，让 Gemini APP 通过 Connected Apps 主动过来领单、读文件和交报告。表 \ref{tab:compare} 给出了两类方案的工程对比。
+
+\section{系统架构设计}
+
+借鉴网络工程里常见的分层思想，本系统将智能体工作流拆分为两个彼此独立、通过轻量中枢协同的平面，整体结构如图 \ref{fig:arch} 所示。
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=1.1cm and 1.6cm,
+  box/.style={rectangle, rounded corners=4pt, draw=BorderGray, line width=0.8pt, align=center, font=\footnotesize, inner sep=7pt},
+  cloudbox/.style={box, fill=SoftBlue, minimum width=4.4cm, minimum height=1.55cm},
+  hubbox/.style={box, fill=SoftAmber, minimum width=4.6cm, minimum height=1.55cm},
+  localbox/.style={box, fill=SoftGreen, minimum width=4.4cm, minimum height=1.55cm},
+  arr/.style={-{Stealth[length=2.4mm]}, line width=0.9pt, draw=InkDark},
+  lbl/.style={font=\scriptsize, fill=white, inner sep=1.5pt, align=center}
+]
+  \node[localbox] (local) {\textbf{本地数据面（Data Plane）}\\Antigravity / 本地 CLI\\{\scriptsize 文件改写 $\cdot$ 终端测试 $\cdot$ Git 提交}};
+  \node[hubbox, right=2.1cm of local] (hub) {\textbf{中枢桥梁（gemini-bridge-mcp）}\\Node.js 22 零依赖服务（<30 MB）\\{\scriptsize 任务状态机 $\cdot$ 沙箱隔离 $\cdot$ OAuth/密钥}};
+  \node[cloudbox, right=2.1cm of hub] (cloud) {\textbf{云端控制面（Control Plane）}\\Google Gemini APP（Web / 手机）\\{\scriptsize 深度调研 $\cdot$ 长上下文 $\cdot$ 架构规划}};
+
+  \draw[arr] ([yshift=10pt]local.east) -- node[above, lbl]{\texttt{push-repo} / \texttt{dispatch}} ([yshift=10pt]hub.west);
+  \draw[arr] ([yshift=-10pt]hub.west) -- node[below, lbl]{\texttt{pull} / \texttt{proposals}} ([yshift=-10pt]local.east);
+
+  \draw[arr] ([yshift=10pt]cloud.west) -- node[above, lbl]{\texttt{get\_task} / \texttt{read\_repo}} ([yshift=10pt]hub.east);
+  \draw[arr] ([yshift=-10pt]hub.east) -- node[below, lbl]{\texttt{submit} / \texttt{propose\_task}} ([yshift=-10pt]cloud.west);
+\end{tikzpicture}
+\caption{gemini-bridge-mcp 端云异构协同总体架构。本地数据面负责确定性工程落地，云端控制面负责高开销检索与全局规划，中枢层提供状态持久化与安全隔离。}
+\label{fig:arch}
+\end{figure*}
+
+\subsection{控制面与数据面的职责切分}
+
+在免费账号约束下，把所有推理和执行都塞进本地模型会导致额度迅速枯竭。系统将高 Token 吞吐的认知任务全部剥离给云端控制面（Gemini APP），包括长文档通读、竞品多源调研与跨模块架构拆解。本地数据面（Antigravity）则只接收压缩后的结论摘要与明确改动清单，把有限的本地额度全部用在刀刃上，也就是精准读写代码、跑构建和验证测试。
+
+从 Token 经济性的角度看，设本地单次全库分析需消耗上下文 $C_{\text{repo}}$，经中枢外包后，本地仅需读取云端回传的精炼摘要 $C_{\text{sum}}$（通常满足 $C_{\text{sum}} \ll C_{\text{repo}}$）。本地上下文占用率从 $O(C_{\text{repo}})$ 降至 $O(C_{\text{sum}})$，从而使本地免费轻量模型也能稳定驾驭大型工程。
+
+\subsection{零依赖轻量实现与工具暴露}
+
+整个服务端完全基于 Node.js 22 原生内置模块（\texttt{node:http}、\texttt{node:crypto}、\texttt{node:fs}）编写，不引入任何第三方 npm 依赖包，降低了供应链风险和部署体积。服务端通过标准 Streamable HTTP 端点向 Gemini APP 暴露了四组核心沙箱工具：任务队列工具（\texttt{list\_tasks}、\texttt{get\_task}、\texttt{claim\_task}、\texttt{checkpoint\_task}、\texttt{submit\_task\_result}、\texttt{propose\_task}）、交换区读写工具（\texttt{FILES\_ROOT}）、只读笔记检索工具（\texttt{NOTES\_ROOT}）以及只读代码浏览工具（\texttt{REPOS\_ROOT}）。
+
+\section{双向异步协议与状态机}
+
+为了同时覆盖“工位委派重活”和“外出灵感立项”两类场景，中枢内部维护了一套基于原子文件写入的任务状态机，如图 \ref{fig:state} 所示。
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=0.85cm and 0.9cm,
+  st/.style={rectangle, rounded corners=3pt, draw=PrimaryBlue, fill=SoftBlue, font=\scriptsize\ttfamily, inner sep=4pt, minimum width=1.85cm, align=center},
+  st2/.style={rectangle, rounded corners=3pt, draw=BorderGray, fill=SoftGreen, font=\scriptsize\ttfamily, inner sep=4pt, minimum width=1.85cm, align=center},
+  arr/.style={-{Stealth[length=2mm]}, line width=0.75pt, draw=InkDark}
+]
+  \node[st] (pend) {pending};
+  \node[st, right=1.15cm of pend] (prog) {in\_progress};
+  \node[st2, below=0.8cm of prog] (done) {completed};
+  \node[st, below=0.8cm of pend] (prop) {pending\_review};
+
+  \draw[arr] (pend) -- node[above, font=\tiny]{\texttt{claim\_task}} (prog);
+  \draw[arr] (prog) -- node[right, font=\tiny]{\texttt{submit}} (done);
+  \draw[arr] (prop) -- node[below, font=\tiny]{本地拉取采纳} (done);
+\end{tikzpicture}
+\caption{任务状态机流转。下行任务由 \texttt{pending} 经原子认领进入 \texttt{in\_progress}；移动端逆向提案直接落盘为 \texttt{pending\_review}。}
+\label{fig:state}
+\end{figure}
+
+\subsection{下行委派与上行逆向提案}
+
+下行链路服务于本地向云端借脑。本地先运行 \texttt{gemini-bridge push-repo} 同步精简代码树，再通过 \texttt{gemini-bridge dispatch} 写入目标、约束与期望的 Markdown 结构，并输出一行触发词。将其贴入 Gemini APP 后，云端模型先调用 \texttt{claim\_task} 完成原子加锁，随后按需调用 \texttt{search\_repo\_code} 与 \texttt{read\_repo\_file} 仅读取相关行号，最后调用 \texttt{submit\_task\_result} 提交结构化摘要与全文。服务端会在提交阶段执行契约校验，确认必填章节齐全后标记完成。
+
+上行链路则打通了移动端到桌面的时空断层。用户在通勤或外出时，用手机端 Gemini APP 聊出一套方案，指示模型调用 \texttt{propose\_task}，标题、背景、实施计划与建议步骤会持久化为 \texttt{pending\_review} 工单。回到电脑前只需运行 \texttt{gemini-bridge proposals} 与 \texttt{pull}，本地 Antigravity 即可接管执行。
+
+\subsection{双轨认证与多账号隔离}
+
+在对接 Google Connected Apps 时，部分个人环境在动态客户端注册（RFC 7591）或 OAuth 2.1 回调环节容易遇到兼容性问题 \cite{rfc7591}。为此服务端在完整支持 OAuth 2.1、PKCE（S256）和最长 16 KB 状态透传的基础上，额外提供了多账号专属直连路径 \texttt{/mcp/u/<key>}。用户在环境变量配置 \texttt{MCP\_ACCOUNT\_KEYS} 后，只需在 Custom apps 中选择无鉴权模式并填入专属路径即可直连。服务端使用基于 SHA-256 的恒定时间比对（\texttt{timingSafeEqual}）校验密钥以防侧信道攻击，并自动为每个账号的任务和审计日志打上独立归属标签。
+
+\section{安全沙箱与边界隔离}
+
+将本地代码暴露给云端对话工具，最大的顾虑在于凭证泄露和越权改写。系统在客户端推送与服务端执行两个环节设置了纵深防线，具体策略见表 \ref{tab:sec}。
+
+\begin{table}[t]
+\centering
+\caption{双端安全沙箱威胁模型与拦截机制}
+\label{tab:sec}
+\scriptsize
+\begin{tabularx}{\columnwidth}{@{}lX@{}}
+\toprule
+\textbf{潜在风险} & \textbf{系统强制拦截策略} \\
+\midrule
+密钥与配置误传 & 客户端推送阶段硬拦截 \texttt{.env*}、\texttt{*.pem}、\texttt{*.key}、\texttt{id\_rsa*} 及含 \texttt{credentials}/\texttt{secret} 路径 \\
+依赖与二进制膨胀 & 自动跳过 \texttt{.git}、\texttt{node\_modules}、\texttt{venv}、\texttt{dist}；拒绝二进制及大于 512 KB 单文件 \\
+路径穿越与软链逃逸 & 所有读写前执行 \texttt{fs.realpath} 递归校验，封堵 \texttt{..}、UNC 路径与沙箱外符号链接 \\
+云端误改本地源码 & \texttt{REPOS\_ROOT} 与 \texttt{NOTES\_ROOT} 强制 100\% 只读；写操作仅限 \texttt{FILES\_ROOT}（限 2 MB） \\
+并发覆盖冲突 & \texttt{edit\_file} 支持 \texttt{expected\_sha256} 乐观锁，修改前自动落盘历史快照供回滚 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+此外，系统贯彻最小必要上下文原则。云端模型先浏览目录树与字面量搜索结果，再按需指定起止行号读取片段，无需将整座代码仓库一次性塞入云端对话，从源头上压缩了源码暴露面。
+
+\section{实测验证与现实局限}
+
+\subsection{自动化测试与运行开销}
+
+项目自带基于 Node.js 原生测试运行器的端到端集成测试套件 \texttt{tests/integration.test.mjs}，完整覆盖了 OAuth 2.1 与 PKCE 授权流、MCP 全部工具调用、路径穿越拦截、敏感文件屏蔽以及 CLI 派发拉取闭环。在本地 Windows 环境（Node.js 22）实测中，整套端到端集成测试耗时约 1.75 秒并全部通过，服务常驻内存低于 30 MB，无任何外部运行时依赖。
+
+\subsection{绕不开的现实边界}
+
+从真实使用经验出发，这套架构存在三项明确的工程边界，需要使用者提前评估。
+
+\textbf{常驻运行门槛。} 若希望电脑关机后手机端仍可随时通过 \texttt{propose\_task} 提交提案，服务端需要部署在 24 小时在线的节点上。开发者既可以选用廉价云主机配合 Docker 与 Caddy 自动 HTTPS，也可以将其部署至带免费额度的容器托管平台（如 HuggingFace Spaces 或 Render）。如果仅在工位电脑开机时实时借用云端规划，则完全无需购买服务器，直接本地运行配合免费 \texttt{cloudflared} 临时隧道即可工作。
+
+\textbf{平台入口可用性。} Google Gemini APP 的 Custom apps 入口目前受限于账号地区、英文界面与活动记录开关，并非所有账号开箱即可见。针对暂未开放该入口的账号，文档中提供了基于 Google Docs 扩展的中转退化方案。
+
+\textbf{半自动交互断点。} 当前流程在本地 \texttt{dispatch} 后仍需手动将一行提示词粘贴进 Gemini APP，云端提交后也需在本地执行 \texttt{pull} 拉取。后续版本计划引入本地轻量守护进程监听服务端完成事件（SSE 或 Webhook），把最后两步人工搬运自动化。
+
+\section{结语}
+
+\texttt{gemini-bridge-mcp} 只有数千行原生 Node.js 代码，没有复杂框架或黑盒魔法。它解决的是一个非常朴素的错配问题：让被免费额度卡住的本地编程智能体借到云端的长上下文与强规划脑力，同时让困在网页里的云端大模型借到本地沙箱的读取与执行手脚。对于希望在零额外 API 账单前提下处理复杂工程的独立开发者，这套基于官方协议的轻量化桥梁已经跑通了端到端闭环，并按 MIT 协议开放源码，供社区继续打磨自动化触发与多账号调度能力。
+
+\begin{thebibliography}{9}
+\scriptsize
+\bibitem{mcp2025}
+Anthropic and MCP Contributors. \emph{Model Context Protocol Specification (Streamable HTTP Transport)}. 2025. \url{https://modelcontextprotocol.io}
+
+\bibitem{rfc7591}
+J. Richer, M. Jones, J. Bradley, M. Machulak, and P. Hunt. \emph{OAuth 2.0 Dynamic Client Registration Protocol (RFC 7591)}. IETF, 2015.
+
+\bibitem{oauth21}
+A. Parecki, D. Waite, and T. Lodderstedt. \emph{The OAuth 2.1 Authorization Framework (Draft)}. IETF OAuth Working Group, 2025.
+
+\bibitem{bowtied2025}
+BowTiedSwan. \emph{gemini-mcp: Browser-backed MCP bridge for Google Gemini Web}. GitHub Repository, 2025.
+
+\bibitem{walkoud2025}
+Walkoud. \emph{gemini-browser-mcp: Chrome extension MCP bridge for Claude Code}. GitHub Repository, 2025.
+\end{thebibliography}
+
+\end{document}

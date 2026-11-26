@@ -1,0 +1,50 @@
+{
+  "name": "gemini-handoff-mcp",
+  "version": "1.0.0",
+  "description": "Zero-dependency Streamable HTTP MCP control-plane and execution-plane handoff harness bridging Google Gemini APP with local coding agents (Antigravity, Claude Code, Codex, Cursor).",
+  "type": "module",
+  "main": "src/server.mjs",
+  "exports": {
+    ".": "./src/server.mjs",
+    "./config": "./src/config.mjs"
+  },
+  "bin": {
+    "gemini-handoff": "cli/handoff-cli.mjs"
+  },
+  "files": [
+    "assets/",
+    "cli/",
+    "deploy/",
+    "skills/",
+    "src/",
+    ".env.example",
+    "Dockerfile",
+    "docker-compose.yml",
+    "LICENSE",
+    "README.md",
+    "README.zh-CN.md",
+    "SECURITY.md"
+  ],
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test tests/integration.test.mjs",
+    "cli": "node cli/handoff-cli.mjs"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "gemini",
+    "gemini-app",
+    "gemini-handoff",
+    "antigravity",
+    "claude-code",
+    "deep-research",
+    "agent-harness",
+    "zero-dependency"
+  ],
+  "author": "Sansi-06",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

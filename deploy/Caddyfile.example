@@ -1,0 +1,22 @@
+# Copy this file to deploy/Caddyfile and replace mcp.your-domain.com with your domain.
+# For Docker Compose (`docker compose --profile caddy up -d`), keep upstream `gemini-handoff:8787`.
+# For bare-metal Caddy on the same host, change upstream to `127.0.0.1:8787`.
+
+mcp.your-domain.com {
+    # Redact /mcp/u/<key> and /u/<key>/... secret tokens from access logs (CWE-598 defense)
+    log {
+        output stdout
+        format filter {
+            wrap console
+            fields {
+                request>uri replace "(/mcp/u/|/u/)[^/?]+" "$1[redacted]"
+            }
+        }
+    }
+
+    reverse_proxy gemini-handoff:8787 {
+        flush_interval -1
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
+}

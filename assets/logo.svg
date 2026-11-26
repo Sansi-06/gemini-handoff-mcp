@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Left C-Portal (Local Agent): Exact concentric ring cx=150, cy=256, rMid=94, thickness=60, opening=±58° -->
+    <clipPath id="leftPortal">
+      <path d="M 215.71 150.84 A 124 124 0 1 0 215.71 361.16 A 30 30 0 0 0 183.91 310.28 A 64 64 0 1 1 183.91 201.72 A 30 30 0 0 0 215.71 150.84 Z"/>
+    </clipPath>
+
+    <!-- Right C-Portal (Cloud Gemini): Exact concentric ring cx=362, cy=256, rMid=94, thickness=60, opening=±58° -->
+    <clipPath id="rightPortal">
+      <path d="M 296.29 150.84 A 124 124 0 1 1 296.29 361.16 A 30 30 0 0 1 328.09 310.28 A 64 64 0 1 0 328.09 201.72 A 30 30 0 0 1 296.29 150.84 Z"/>
+    </clipPath>
+
+    <!-- Crisp Google Core Blue (Chrome / Gemini Blue luminance) -->
+    <linearGradient id="geminiCoreBlue" x1="20%" y1="15%" x2="80%" y2="85%">
+      <stop offset="0%" stop-color="#5E97F6"/>
+      <stop offset="55%" stop-color="#4285F4"/>
+      <stop offset="100%" stop-color="#1A73E8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Left Bridge Link: Google Blue (#4285F4) & Google Green (#34A853) -->
+  <g clip-path="url(#leftPortal)">
+    <rect x="0" y="0" width="256" height="256" fill="#4285F4"/>
+    <rect x="0" y="256" width="256" height="256" fill="#34A853"/>
+  </g>
+
+  <!-- Right Bridge Link: Google Red (#EA4335) & Google Yellow (#FBBC04) -->
+  <g clip-path="url(#rightPortal)">
+    <rect x="256" y="0" width="256" height="256" fill="#EA4335"/>
+    <rect x="256" y="256" width="256" height="256" fill="#FBBC04"/>
+  </g>
+
+  <!-- Central Gemini 4-Point Sparkle Bridging Both Portals (Exact circular astroid r=94 + G1 round tips) -->
+  <path d="M 256 148
+           A 96 96 0 0 0 364 256
+           A 96 96 0 0 0 256 364
+           A 96 96 0 0 0 148 256
+           A 96 96 0 0 0 256 148 Z"
+        fill="url(#geminiCoreBlue)"
+        stroke="url(#geminiCoreBlue)"
+        stroke-width="10"
+        stroke-linejoin="round"/>
+</svg>

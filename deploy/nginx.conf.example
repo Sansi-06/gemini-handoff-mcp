@@ -1,0 +1,31 @@
+# Example Nginx reverse proxy configuration for bare-metal or external TLS termination.
+# Define inside `http { ... }` to redact /mcp/u/<key> secret tokens from access logs (CWE-598):
+#   map $request_uri $redacted_uri {
+#       ~^(?<prefix>/(?:mcp/)?u/)[^/?]+(?<suffix>.*)$ "${prefix}[redacted]${suffix}";
+#       default $request_uri;
+#   }
+#   log_format mcp_redacted '$remote_addr - [$time_local] "$request_method $redacted_uri" $status $body_bytes_sent';
+
+server {
+    listen 443 ssl http2;
+    server_name mcp.your-domain.com;
+
+    # access_log /var/log/nginx/gemini-handoff.access.log mcp_redacted;
+
+    # Point to your TLS certificates (e.g., Let's Encrypt / Certbot)
+    ssl_certificate /etc/letsencrypt/live/mcp.your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mcp.your-domain.com/privkey.pem;
+
+    client_max_body_size 4m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8787;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}

@@ -1,0 +1,38 @@
+services:
+  gemini-handoff:
+    build: .
+    container_name: gemini-handoff-mcp
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8787"
+      DATA_DIR: "/data"
+      # Optional: split /api/* admin endpoints to loopback-only port 8788 on host:
+      # ADMIN_HOST: "0.0.0.0"
+      # ADMIN_PORT: "8788"
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:8787:8787"
+      # - "127.0.0.1:8788:8788"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: gemini-handoff-caddy
+    profiles: ["caddy"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - gemini-handoff
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}

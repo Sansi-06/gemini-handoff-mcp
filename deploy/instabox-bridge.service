@@ -1,0 +1,16 @@
+[Unit]
+Description=Gemini Bridge MCP Connector Server
+After=network.target
+
+[Service]
+Type=simple
+User=user
+Group=user
+WorkingDirectory=/data/workspace/gemini-bridge-mcp
+EnvironmentFile=/data/workspace/gemini-bridge-mcp/.env
+ExecStart=/usr/local/bin/node /data/workspace/gemini-bridge-mcp/src/server.mjs
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
